@@ -39,29 +39,6 @@ def load_documents() -> List:
     return products
 
 
-@dsl.component()
-def connect_to_weaviate():
-    import os
-
-    WEAVIATE_API_KEY = os.getenv("WEAVIATE_API_KEY")
-    if WEAVIATE_API_KEY is None:
-        print("Weaviate API key is missing")
-        exit(1)
-    print("Weaviate API key is present")
-
-    WEAVIATE_HOST = os.getenv("WEAVIATE_HOST")
-    if WEAVIATE_HOST is None:
-        print("Weaviate host is missing")
-        exit(1)
-    print("Weaviate Host:", WEAVIATE_HOST)
-
-    WEAVIATE_PORT = os.getenv("WEAVIATE_PORT")
-    if WEAVIATE_PORT is None:
-        print("Weaviate port is missing")
-        exit(1)
-    print("Weaviate Port:", WEAVIATE_PORT)
-
-
 @dsl.component(
     base_image="python:3.9",
     packages_to_install=[
