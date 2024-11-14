@@ -283,7 +283,10 @@ def format_documents(documents: List, splits_artifact: Output[Artifact]):
 
         return all_splits
 
-    DocumentSplit = NamedTuple("DocumentSplit", index_name=str, splits=List[str])
+    class DocumentSplit(NamedTuple):
+        index_name: str
+        splits: List[str]
+
     document_splits = []
     for doc in documents:
         product, product_full_name, version, language = doc
