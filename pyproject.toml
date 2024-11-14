@@ -1,0 +1,16 @@
+[project]
+name = "data-ingestion"
+version = "0.1.0"
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = [
+  "E",   # pycodestyle
+  "F",   # pyflakes
+  "UP",  # pyupgrade,
+  "I",   # isort
+  "S",   # bandit
+  "N",   # pep8-naming
+]
