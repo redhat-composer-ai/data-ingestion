@@ -1,20 +1,39 @@
 from typing import List, NamedTuple
-from kfp import dsl, compiler, kubernetes
+from kfp import dsl, kubernetes
 from kfp.dsl import Artifact, Input, Output
 import kfp
 import os
 
+
 @dsl.component()
 def load_documents() -> List:
-    Product = NamedTuple('Product', product=str, product_full_name=str, version=str, language=str)
+    Product = NamedTuple(
+        "Product", product=str, product_full_name=str, version=str, language=str
+    )
 
     products = [
-        Product('red_hat_openshift_ai_self-managed', 'Red Hat OpenShift AI Self-Managed', '2.14', 'en-US'),
-        Product('openshift_container_platform', 'Red Hat OpenShift Container Platform', '4.17', 'en-US'),
-        Product('red_hat_enterprise_linux', 'Red Hat Enterprise Linux 9', '9', 'en-US'),
-        Product('red_hat_ansible_automation_platform', 'Red Hat Ansible Automation Platform', '2.5', 'en-US'),
+        Product(
+            "red_hat_openshift_ai_self-managed",
+            "Red Hat OpenShift AI Self-Managed",
+            "2.14",
+            "en-US",
+        ),
+        Product(
+            "openshift_container_platform",
+            "Red Hat OpenShift Container Platform",
+            "4.17",
+            "en-US",
+        ),
+        Product("red_hat_enterprise_linux", "Red Hat Enterprise Linux 9", "9", "en-US"),
+        Product(
+            "red_hat_ansible_automation_platform",
+            "Red Hat Ansible Automation Platform",
+            "2.5",
+            "en-US",
+        ),
     ]
     return products
+
 
 @dsl.component()
 def connect_to_weaviate():
@@ -24,19 +43,20 @@ def connect_to_weaviate():
     if WEAVIATE_API_KEY is None:
         print("Weaviate API key is missing")
         exit(1)
-    print('Weaviate API key is present')
+    print("Weaviate API key is present")
 
     WEAVIATE_HOST = os.getenv("WEAVIATE_HOST")
     if WEAVIATE_HOST is None:
         print("Weaviate host is missing")
         exit(1)
-    print('Weaviate Host:', WEAVIATE_HOST)
+    print("Weaviate Host:", WEAVIATE_HOST)
 
     WEAVIATE_PORT = os.getenv("WEAVIATE_PORT")
     if WEAVIATE_PORT is None:
         print("Weaviate port is missing")
         exit(1)
-    print('Weaviate Port:', WEAVIATE_PORT)
+    print("Weaviate Port:", WEAVIATE_PORT)
+
 
 @dsl.component(
     base_image="python:3.9",
@@ -49,7 +69,7 @@ def connect_to_weaviate():
         "tqdm==4.66.2",
         "weaviate-client==3.26.2",
         "torch==2.4.0",
-    ], 
+    ],
 )
 def format_documents(documents: List, splits_artifact: Output[Artifact]):
     from langchain_text_splitters import (
@@ -61,6 +81,7 @@ def format_documents(documents: List, splits_artifact: Output[Artifact]):
     from langchain_community.document_transformers import Html2TextTransformer
     from langchain_core.documents import Document
     import json
+
     class RedHatDocumentationLoader(WebBaseLoader):
         """Load `Red Hat Documentation` single-html webpages."""
 
@@ -158,7 +179,8 @@ def format_documents(documents: List, splits_artifact: Output[Artifact]):
 
             return [Document(page_content=text, metadata=metadata)]
 
-    print('Starting format_documents')
+    print("Starting format_documents")
+
     def get_pages(product, version, language) -> List:
         """Get the list of pages from the Red Hat product documentation."""
 
@@ -175,7 +197,7 @@ def format_documents(documents: List, splits_artifact: Output[Artifact]):
         soup = loader.scrape()
         print(f"URL {url}")
         # Select only the element titles that contain the links to the documentation pages
-        filtered_elements = soup.find_all("h3", attrs={"slot":"headline"})
+        filtered_elements = soup.find_all("h3", attrs={"slot": "headline"})
         new_soup = BeautifulSoup("", "lxml")
         for element in filtered_elements:
             new_soup.append(element)
@@ -190,11 +212,13 @@ def format_documents(documents: List, splits_artifact: Output[Artifact]):
             url for url in links if url.startswith("/en/documentation")
         ]  # Filter out unwanted links
         pages = [
-            link.replace("/html/", "/html-single/") for link in links if "/html/" in link
+            link.replace("/html/", "/html-single/")
+            for link in links
+            if "/html/" in link
         ]  # We want single pages html
         # print(f"{len(links)} links found\n {len(pages)} pages found\n", links, pages)
         return pages
-    
+
     def split_document(product, version, language, page, product_full_name) -> List:
         """Split a Red Hat documentation page into smaller sections."""
 
@@ -239,7 +263,7 @@ def format_documents(documents: List, splits_artifact: Output[Artifact]):
         # Char-level split
         splits = text_splitter.split_documents(new_splits)
         json_splits = []
-        
+
         for split in splits:
             content_header = f"Section: {split.metadata['title']}"
             for header_name in ["Header1", "Header2", "Header3"]:
@@ -247,10 +271,12 @@ def format_documents(documents: List, splits_artifact: Output[Artifact]):
                     content_header += f" / {split.metadata[header_name]}"
             content_header += "\n\nContent:\n"
             split.page_content = content_header + split.page_content
-            json_splits.append({"page_content": split.page_content, "metadata": split.metadata})
+            json_splits.append(
+                {"page_content": split.page_content, "metadata": split.metadata}
+            )
 
         return json_splits
-    
+
     def generate_splits(product, product_full_name, version, language) -> List:
         """Generate the splits for a Red Hat documentation product."""
 
@@ -268,26 +294,29 @@ def format_documents(documents: List, splits_artifact: Output[Artifact]):
         print(f"Generated {len(all_splits)} splits.")
 
         return all_splits
-    
-    DocumentSplit = NamedTuple('DocumentSplit', index_name=str, splits=List[str])
+
+    DocumentSplit = NamedTuple("DocumentSplit", index_name=str, splits=List[str])
     document_splits = []
     for doc in documents:
         product, product_full_name, version, language = doc
 
-        index_name = f"{product}_{language}_{version}".replace(
-            "-", "_"
-        ).replace(
+        index_name = f"{product}_{language}_{version}".replace("-", "_").replace(
             ".", "_"
         )
-        splits = generate_splits(product=product, product_full_name=product_full_name, version=version, language=language)
+        splits = generate_splits(
+            product=product,
+            product_full_name=product_full_name,
+            version=version,
+            language=language,
+        )
         document_splits.append(DocumentSplit(index_name=index_name, splits=splits))
-    
+
     # Writing splits to file to be passed to next step
-    with open(splits_artifact.path, 'w') as f:
+    with open(splits_artifact.path, "w") as f:
         f.write(json.dumps(document_splits))
-        
 
     # return document_splits
+
 
 @dsl.component(
     base_image="image-registry.openshift-image-registry.svc:5000/redhat-ods-applications/pytorch:2024.1",
@@ -296,7 +325,7 @@ def format_documents(documents: List, splits_artifact: Output[Artifact]):
         "weaviate-client==3.26.2",
         "sentence-transformers==2.4.0",
         "einops==0.7.0",
-    ]
+    ],
 )
 def ingest_documents(input_artifact: Input[Artifact]):
     from langchain.embeddings.huggingface import HuggingFaceEmbeddings
@@ -312,23 +341,23 @@ def ingest_documents(input_artifact: Input[Artifact]):
         splits_artifact = input_file.read()
         document_splits = json.loads(splits_artifact)
 
-    WEAVIATE_API_KEY = os.getenv('WEAVIATE_API_KEY')
-    WEAVIATE_HOST = os.getenv('WEAVIATE_HOST')
-    WEAVIATE_PORT = os.getenv('WEAVIATE_PORT')
+    WEAVIATE_API_KEY = os.getenv("WEAVIATE_API_KEY")
+    WEAVIATE_HOST = os.getenv("WEAVIATE_HOST")
+    WEAVIATE_PORT = os.getenv("WEAVIATE_PORT")
 
     if not WEAVIATE_API_KEY or not WEAVIATE_API_KEY or not WEAVIATE_HOST:
         print("Weaviate config not present. Check host, port and api_key")
         exit(1)
 
     # Replace with your Weaviate instance API key
-    auth_config = weaviate.auth.AuthApiKey(api_key=WEAVIATE_API_KEY)  
-    
+    auth_config = weaviate.auth.AuthApiKey(api_key=WEAVIATE_API_KEY)
+
     # Iniatilize weaviate client
     weaviate_client = weaviate.Client(
-        url = WEAVIATE_HOST + ":" + WEAVIATE_PORT,  # Replace with your Weaviate endpoint
-        auth_client_secret=auth_config
+        url=WEAVIATE_HOST + ":" + WEAVIATE_PORT,  # Replace with your Weaviate endpoint
+        auth_client_secret=auth_config,
     )
-    
+
     # Health check for WEAVIATE_CLIENT connection
     print(f"Weaviate Client status: {weaviate_client.is_live()}")
 
@@ -351,43 +380,41 @@ def ingest_documents(input_artifact: Input[Artifact]):
 
         print(f"Uploading document to collection {index_name}")
         db.add_documents(splits)
-    
+
     for index_name, splits in document_splits:
-        documents = [Document(page_content=split['page_content'], metadata=split['metadata']) for split in splits]
+        documents = [
+            Document(page_content=split["page_content"], metadata=split["metadata"])
+            for split in splits
+        ]
         ingest(index_name=index_name, splits=documents)
-    
+
     print("Finished!")
 
-@dsl.pipeline(
-    name="Document Ingestion"
-)
+
+@dsl.pipeline(name="Document Ingestion")
 def ingestion_pipeline():
     load_docs_task = load_documents()
     format_docs_task = format_documents(documents=load_docs_task.output)
     format_docs_task.set_accelerator_type("nvidia.com/gpu").set_accelerator_limit("1")
-    ingest_docs_task = ingest_documents(input_artifact=format_docs_task.outputs['splits_artifact'])
+    ingest_docs_task = ingest_documents(
+        input_artifact=format_docs_task.outputs["splits_artifact"]
+    )
     ingest_docs_task.set_accelerator_type("nvidia.com/gpu").set_accelerator_limit("1")
 
     kubernetes.use_secret_as_env(
         ingest_docs_task,
         secret_name="weaviate-api-key-secret",
-        secret_key_to_env={"AUTHENTICATION_APIKEY_ALLOWED_KEYS": "WEAVIATE_API_KEY"}
+        secret_key_to_env={"AUTHENTICATION_APIKEY_ALLOWED_KEYS": "WEAVIATE_API_KEY"},
     )
-    ingest_docs_task.set_env_variable('WEAVIATE_HOST', 'http://weaviate-vector-db')
-    ingest_docs_task.set_env_variable('WEAVIATE_PORT', '8080')
+    ingest_docs_task.set_env_variable("WEAVIATE_HOST", "http://weaviate-vector-db")
+    ingest_docs_task.set_env_variable("WEAVIATE_PORT", "8080")
 
     kubernetes.add_toleration(
-        format_docs_task,
-        key='nvidia.com/gpu',
-        operator='Exists',
-        effect='NoSchedule'
+        format_docs_task, key="nvidia.com/gpu", operator="Exists", effect="NoSchedule"
     )
 
     kubernetes.add_toleration(
-        ingest_docs_task,
-        key='nvidia.com/gpu',
-        operator='Exists',
-        effect='NoSchedule'
+        ingest_docs_task, key="nvidia.com/gpu", operator="Exists", effect="NoSchedule"
     )
 
 
@@ -407,13 +434,13 @@ if __name__ == "__main__":
     else:
         ssl_ca_cert = None
 
-    print('TOKEN:', BEARER_TOKEN)
-    print('CERT:', ssl_ca_cert)
+    print("TOKEN:", BEARER_TOKEN)
+    print("CERT:", ssl_ca_cert)
 
     client = kfp.Client(
         host=KUBEFLOW_ENDPOINT,
         existing_token=BEARER_TOKEN,
-        # ssl_ca_cert=None,
+        ssl_ca_cert=None,
     )
     result = client.create_run_from_pipeline_func(
         ingestion_pipeline,
