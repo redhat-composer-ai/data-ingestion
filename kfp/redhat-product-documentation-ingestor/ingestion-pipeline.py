@@ -1,15 +1,19 @@
+import os
 from typing import List, NamedTuple
+
+import kfp
 from kfp import dsl, kubernetes
 from kfp.dsl import Artifact, Input, Output
-import kfp
-import os
 
 
 @dsl.component()
 def load_documents() -> List:
-    Product = NamedTuple(
-        "Product", product=str, product_full_name=str, version=str, language=str
-    )
+
+    class Product(NamedTuple):
+        product: str
+        product_full_name: str
+        version: str
+        language: str
 
     products = [
         Product(
@@ -72,15 +76,16 @@ def connect_to_weaviate():
     ],
 )
 def format_documents(documents: List, splits_artifact: Output[Artifact]):
+    import json
+
+    from bs4 import BeautifulSoup
+    from langchain_community.document_loaders.web_base import WebBaseLoader
+    from langchain_community.document_transformers import Html2TextTransformer
+    from langchain_core.documents import Document
     from langchain_text_splitters import (
         MarkdownHeaderTextSplitter,
         RecursiveCharacterTextSplitter,
     )
-    from langchain_community.document_loaders.web_base import WebBaseLoader
-    from bs4 import BeautifulSoup
-    from langchain_community.document_transformers import Html2TextTransformer
-    from langchain_core.documents import Document
-    import json
 
     class RedHatDocumentationLoader(WebBaseLoader):
         """Load `Red Hat Documentation` single-html webpages."""
@@ -185,14 +190,7 @@ def format_documents(documents: List, splits_artifact: Output[Artifact]):
         """Get the list of pages from the Red Hat product documentation."""
 
         # Load the Red Hat documentation page
-        url = [
-            "https://access.redhat.com/documentation/"
-            + language
-            + "/"
-            + product
-            + "/"
-            + version
-        ]
+        url = ["https://access.redhat.com/documentation/" + language + "/" + product + "/" + version]
         loader = WebBaseLoader(url)
         soup = loader.scrape()
         print(f"URL {url}")
@@ -208,13 +206,9 @@ def format_documents(documents: List, splits_artifact: Output[Artifact]):
         links = []
         for match in new_soup.findAll("a"):
             links.append(match.get("href"))
-        links = [
-            url for url in links if url.startswith("/en/documentation")
-        ]  # Filter out unwanted links
+        links = [url for url in links if url.startswith("/en/documentation")]  # Filter out unwanted links
         pages = [
-            link.replace("/html/", "/html-single/")
-            for link in links
-            if "/html/" in link
+            link.replace("/html/", "/html-single/") for link in links if "/html/" in link
         ]  # We want single pages html
         # print(f"{len(links)} links found\n {len(pages)} pages found\n", links, pages)
         return pages
@@ -237,9 +231,7 @@ def format_documents(documents: List, splits_artifact: Output[Artifact]):
             ("###", "Header3"),
         ]
 
-        markdown_splitter = MarkdownHeaderTextSplitter(
-            headers_to_split_on=headers_to_split_on, strip_headers=True
-        )
+        markdown_splitter = MarkdownHeaderTextSplitter(headers_to_split_on=headers_to_split_on, strip_headers=True)
 
         # Markdown split
         new_splits: List[Document] = []
@@ -256,9 +248,7 @@ def format_documents(documents: List, splits_artifact: Output[Artifact]):
         # Char-level splitter config
         chunk_size = 2048
         chunk_overlap = 256
-        text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=chunk_size, chunk_overlap=chunk_overlap
-        )
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
 
         # Char-level split
         splits = text_splitter.split_documents(new_splits)
@@ -271,9 +261,7 @@ def format_documents(documents: List, splits_artifact: Output[Artifact]):
                     content_header += f" / {split.metadata[header_name]}"
             content_header += "\n\nContent:\n"
             split.page_content = content_header + split.page_content
-            json_splits.append(
-                {"page_content": split.page_content, "metadata": split.metadata}
-            )
+            json_splits.append({"page_content": split.page_content, "metadata": split.metadata})
 
         return json_splits
 
@@ -300,9 +288,7 @@ def format_documents(documents: List, splits_artifact: Output[Artifact]):
     for doc in documents:
         product, product_full_name, version, language = doc
 
-        index_name = f"{product}_{language}_{version}".replace("-", "_").replace(
-            ".", "_"
-        )
+        index_name = f"{product}_{language}_{version}".replace("-", "_").replace(".", "_")
         splits = generate_splits(
             product=product,
             product_full_name=product_full_name,
@@ -328,12 +314,13 @@ def format_documents(documents: List, splits_artifact: Output[Artifact]):
     ],
 )
 def ingest_documents(input_artifact: Input[Artifact]):
+    import json
+    import os
+
+    import weaviate
     from langchain.embeddings.huggingface import HuggingFaceEmbeddings
     from langchain_community.vectorstores import Weaviate
     from langchain_core.documents import Document
-    import weaviate
-    import json
-    import os
 
     # Reading artifact from previous step into variable
     document_splits = []
@@ -382,10 +369,7 @@ def ingest_documents(input_artifact: Input[Artifact]):
         db.add_documents(splits)
 
     for index_name, splits in document_splits:
-        documents = [
-            Document(page_content=split["page_content"], metadata=split["metadata"])
-            for split in splits
-        ]
+        documents = [Document(page_content=split["page_content"], metadata=split["metadata"]) for split in splits]
         ingest(index_name=index_name, splits=documents)
 
     print("Finished!")
@@ -396,32 +380,26 @@ def ingestion_pipeline():
     load_docs_task = load_documents()
     format_docs_task = format_documents(documents=load_docs_task.output)
     format_docs_task.set_accelerator_type("nvidia.com/gpu").set_accelerator_limit("1")
-    ingest_docs_task = ingest_documents(
-        input_artifact=format_docs_task.outputs["splits_artifact"]
-    )
+    ingest_docs_task = ingest_documents(input_artifact=format_docs_task.outputs["splits_artifact"])
     ingest_docs_task.set_accelerator_type("nvidia.com/gpu").set_accelerator_limit("1")
 
     kubernetes.use_secret_as_env(
         ingest_docs_task,
-        secret_name="weaviate-api-key-secret",
+        secret_name="weaviate-api-key-secret", # noqa: S106
         secret_key_to_env={"AUTHENTICATION_APIKEY_ALLOWED_KEYS": "WEAVIATE_API_KEY"},
     )
     ingest_docs_task.set_env_variable("WEAVIATE_HOST", "http://weaviate-vector-db")
     ingest_docs_task.set_env_variable("WEAVIATE_PORT", "8080")
 
-    kubernetes.add_toleration(
-        format_docs_task, key="nvidia.com/gpu", operator="Exists", effect="NoSchedule"
-    )
+    kubernetes.add_toleration(format_docs_task, key="nvidia.com/gpu", operator="Exists", effect="NoSchedule")
 
-    kubernetes.add_toleration(
-        ingest_docs_task, key="nvidia.com/gpu", operator="Exists", effect="NoSchedule"
-    )
+    kubernetes.add_toleration(ingest_docs_task, key="nvidia.com/gpu", operator="Exists", effect="NoSchedule")
 
 
 if __name__ == "__main__":
     KUBEFLOW_ENDPOINT = os.getenv("KUBEFLOW_ENDPOINT")
     print(f"Connecting to kfp: {KUBEFLOW_ENDPOINT}")
-    sa_token_path = "/run/secrets/kubernetes.io/serviceaccount/token"
+    sa_token_path = "/run/secrets/kubernetes.io/serviceaccount/token" # noqa: S105
     if os.path.isfile(sa_token_path):
         with open(sa_token_path) as f:
             BEARER_TOKEN = f.read().rstrip()
@@ -433,9 +411,6 @@ if __name__ == "__main__":
         ssl_ca_cert = sa_ca_cert
     else:
         ssl_ca_cert = None
-
-    print("TOKEN:", BEARER_TOKEN)
-    print("CERT:", ssl_ca_cert)
 
     client = kfp.Client(
         host=KUBEFLOW_ENDPOINT,
