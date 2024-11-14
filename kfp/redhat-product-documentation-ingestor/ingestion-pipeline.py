@@ -331,20 +331,20 @@ def ingest_documents(input_artifact: Input[Artifact]):
         splits_artifact = input_file.read()
         document_splits = json.loads(splits_artifact)
 
-    WEAVIATE_API_KEY = os.getenv("WEAVIATE_API_KEY")
-    WEAVIATE_HOST = os.getenv("WEAVIATE_HOST")
-    WEAVIATE_PORT = os.getenv("WEAVIATE_PORT")
+    weaviate_api_key = os.getenv("WEAVIATE_API_KEY")
+    weaviate_host = os.getenv("WEAVIATE_HOST")
+    weaviate_port = os.getenv("WEAVIATE_PORT")
 
-    if not WEAVIATE_API_KEY or not WEAVIATE_API_KEY or not WEAVIATE_HOST:
+    if not weaviate_api_key or not weaviate_api_key or not weaviate_host:
         print("Weaviate config not present. Check host, port and api_key")
         exit(1)
 
     # Replace with your Weaviate instance API key
-    auth_config = weaviate.auth.AuthApiKey(api_key=WEAVIATE_API_KEY)
+    auth_config = weaviate.auth.AuthApiKey(api_key=weaviate_api_key)
 
     # Iniatilize weaviate client
     weaviate_client = weaviate.Client(
-        url=WEAVIATE_HOST + ":" + WEAVIATE_PORT,  # Replace with your Weaviate endpoint
+        url=weaviate_host + ":" + weaviate_port,  # Replace with your Weaviate endpoint
         auth_client_secret=auth_config,
     )
 
