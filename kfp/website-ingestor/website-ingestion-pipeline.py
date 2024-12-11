@@ -263,7 +263,7 @@ if __name__ == "__main__":
     result = client.create_run_from_pipeline_func(
         website_ingestion_pipeline,
         experiment_name="website_ingestion",
-        # enable_caching=False
+        enable_caching=False
     )
 
     # compiler.Compiler().compile(ingestion_pipeline, 'pipeline.yaml')
