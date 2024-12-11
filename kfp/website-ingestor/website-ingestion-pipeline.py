@@ -20,7 +20,7 @@ from kfp.dsl import Artifact, Input, Output
         "torch==2.4.0",
     ],
 )
-def scrape_website(url, html_artifact: Output[Artifact]):
+def scrape_website(url: str, html_artifact: Output[Artifact]):
     import requests
     import logging        
     from bs4 import BeautifulSoup
@@ -59,7 +59,7 @@ def scrape_website(url, html_artifact: Output[Artifact]):
         "einops==0.7.0",
     ],
 )
-def process_and_store(input_artifact: Input[Artifact], url):
+def process_and_store(input_artifact: Input[Artifact], url: str):
     import weaviate
     import os
     import logging
