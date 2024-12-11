@@ -223,8 +223,8 @@ def process_and_store(input_artifact: Input[Artifact], url: str):
 
 
 @dsl.pipeline(name="Document Ingestion Pipeline")
-def website_ingestion_pipeline():
-    url = "https://www.redhat.com/en/topics/containers/red-hat-openshift-okd"
+def website_ingestion_pipeline(url: str):
+    #url = "https://www.redhat.com/en/topics/containers/red-hat-openshift-okd"
     scrape_website_task=scrape_website(url=url)
     process_and_store_task=process_and_store(url=url, input_artifact=scrape_website_task.outputs["html_artifact"])
 
@@ -241,6 +241,7 @@ def website_ingestion_pipeline():
 
 if __name__ == "__main__":
     KUBEFLOW_ENDPOINT = os.getenv("KUBEFLOW_ENDPOINT")
+    WEBSITE_URL = os.getenv("WEBSITE_URL")
     print(f"Connecting to kfp: {KUBEFLOW_ENDPOINT}")
     sa_token_path = "/run/secrets/kubernetes.io/serviceaccount/token" # noqa: S105
     if os.path.isfile(sa_token_path):
@@ -263,7 +264,10 @@ if __name__ == "__main__":
     result = client.create_run_from_pipeline_func(
         website_ingestion_pipeline,
         experiment_name="website_ingestion",
-        enable_caching=False
+        enable_caching=False,
+        arguments={
+        "url": WEBSITE_URL
+        }
     )
 
     # compiler.Compiler().compile(ingestion_pipeline, 'pipeline.yaml')
