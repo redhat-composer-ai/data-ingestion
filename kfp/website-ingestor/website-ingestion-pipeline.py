@@ -57,6 +57,7 @@ def scrape_website(url: str, html_artifact: Output[Artifact]):
         "weaviate-client==3.26.2",
         "sentence-transformers==2.4.0",
         "einops==0.7.0",
+        "html2text==2024.2.26",
     ],
 )
 def process_and_store(input_artifact: Input[Artifact], url: str):
