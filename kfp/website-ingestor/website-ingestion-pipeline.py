@@ -73,6 +73,116 @@ def process_and_store(input_artifact: Input[Artifact], url: str):
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     logger = logging.getLogger(__name__)
 
+   # Function to get Weaviate client
+    def get_weaviate_client():
+        """Get the Weaviate client."""
+        logger.info("Fetching Weaviate client...")
+        weaviate_api_key = os.getenv("WEAVIATE_API_KEY")
+        weaviate_host = os.getenv("WEAVIATE_HOST")
+        weaviate_port = os.getenv("WEAVIATE_PORT")
+
+        if not all([weaviate_api_key, weaviate_host, weaviate_port]):
+            logger.error("Weaviate config not present. Check host, port, and API key.")
+            exit(1)
+
+        auth_config = weaviate.auth.AuthApiKey(api_key=weaviate_api_key)
+        return weaviate.Client(
+            url=f"{weaviate_host}:{weaviate_port}",
+            auth_client_secret=auth_config,
+        )
+
+    def create_index(weaviate_client, index_name, properties):
+        """
+        Create an index (class) in Weaviate.
+
+        Args:
+            weaviate_client (weaviate.Client): The Weaviate client instance.
+            index_name (str): The name of the index (class) to create.
+            properties (list): List of properties for the class schema. Each property is a dictionary with keys `name` and `dataType`.
+
+        Example:
+            properties = [
+                {"name": "page_content", "dataType": ["text"]},
+                {"name": "metadata", "dataType": ["text"]},
+            ]
+        """
+        try:
+            # Check if the index already exists
+            existing_classes = [cls["class"] for cls in weaviate_client.schema.get()["classes"]]
+            if index_name in existing_classes:
+                logger.info(f"Index '{index_name}' already exists. Skipping creation.")
+                return
+
+            # Define the schema for the new index
+            schema = {
+                "class": index_name,
+                "properties": properties,
+            }
+
+            # Create the index
+            weaviate_client.schema.create_class(schema)
+            logger.info(f"Successfully created index '{index_name}'.")
+
+        except Exception as e:
+            logger.error(f"Error creating index '{index_name}': {e}")
+
+    def convert_to_md(html_content, url):
+        # Convert HTML to Markdown using Html2Text
+        transformer = Html2TextTransformer()
+        document = Document(page_content=html_content, metadata={"url": url})
+        md_document = transformer.transform_documents([document])[0]
+
+        # Split Markdown into sections based on headers
+        headers_to_split_on = [
+            ("#", "Header1"),
+            ("##", "Header2"),
+            ("###", "Header3"),
+            ("####", "Header4"),
+        ]
+        markdown_splitter = MarkdownHeaderTextSplitter(headers_to_split_on=headers_to_split_on, strip_headers=True)
+        header_splits = markdown_splitter.split_text(md_document.page_content)
+
+        # Further split content into chunks for Weaviate ingestion
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=2048, chunk_overlap=256)
+        splits = text_splitter.split_documents(header_splits)
+
+        # Prepare for JSON format with content and metadata
+        json_splits = []
+        for split in splits:
+            content_header = f"Section: {split.metadata.get('Header1', '')}"
+            for header_name in ["Header2", "Header3", "Header4"]:
+                if header_name in split.metadata:
+                    content_header += f" / {split.metadata[header_name]}"
+            content_header += "\n\nContent:\n"
+            split.page_content = content_header + split.page_content
+            json_splits.append({"page_content": split.page_content, "metadata": split.metadata})
+
+        logger.info(f"Successfully processed and converted content for {url}")
+        return json_splits
+
+    # Function to ingest data to Weaviate
+    def ingest(index_name, splits, weaviate_client):
+        """Ingest documents into Weaviate."""
+        logger.info(f"Starting ingestion for index: {index_name}")
+        try:
+            #model_kwargs = {"trust_remote_code": True, "device": "cuda"}
+            model_kwargs = {"trust_remote_code": True}
+            embeddings = HuggingFaceEmbeddings(
+                model_name="nomic-ai/nomic-embed-text-v1",
+                model_kwargs=model_kwargs,
+                show_progress=True,
+            )
+
+            db = Weaviate(
+                embedding=embeddings,
+                client=weaviate_client,
+                index_name=index_name,
+                text_key="page_content",
+            )
+            db.add_documents(splits)
+            logger.info(f"Successfully uploaded documents to {index_name}")
+        except Exception as e:
+            logger.error(f"Error during ingestion for index {index_name}: {e}")
 
 
     """Process the website content and add it to the Weaviate store."""
@@ -109,116 +219,6 @@ def process_and_store(input_artifact: Input[Artifact], url: str):
         ingest(index_name=index_name, splits=splits, weaviate_client=weaviate_client)
 
     logger.info(f"Finished processing for URL: {url}")
-
-    def convert_to_md(html_content, url):
-        # Convert HTML to Markdown using Html2Text
-        transformer = Html2TextTransformer()
-        document = Document(page_content=html_content, metadata={"url": url})
-        md_document = transformer.transform_documents([document])[0]
-
-        # Split Markdown into sections based on headers
-        headers_to_split_on = [
-            ("#", "Header1"),
-            ("##", "Header2"),
-            ("###", "Header3"),
-            ("####", "Header4"),
-        ]
-        markdown_splitter = MarkdownHeaderTextSplitter(headers_to_split_on=headers_to_split_on, strip_headers=True)
-        header_splits = markdown_splitter.split_text(md_document.page_content)
-
-        # Further split content into chunks for Weaviate ingestion
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=2048, chunk_overlap=256)
-        splits = text_splitter.split_documents(header_splits)
-
-        # Prepare for JSON format with content and metadata
-        json_splits = []
-        for split in splits:
-            content_header = f"Section: {split.metadata.get('Header1', '')}"
-            for header_name in ["Header2", "Header3", "Header4"]:
-                if header_name in split.metadata:
-                    content_header += f" / {split.metadata[header_name]}"
-            content_header += "\n\nContent:\n"
-            split.page_content = content_header + split.page_content
-            json_splits.append({"page_content": split.page_content, "metadata": split.metadata})
-
-        logger.info(f"Successfully processed and converted content for {url}")
-        return json_splits
-   # Function to get Weaviate client
-    def get_weaviate_client():
-        """Get the Weaviate client."""
-        logger.info("Fetching Weaviate client...")
-        weaviate_api_key = os.getenv("WEAVIATE_API_KEY")
-        weaviate_host = os.getenv("WEAVIATE_HOST")
-        weaviate_port = os.getenv("WEAVIATE_PORT")
-
-        if not all([weaviate_api_key, weaviate_host, weaviate_port]):
-            logger.error("Weaviate config not present. Check host, port, and API key.")
-            exit(1)
-
-        auth_config = weaviate.auth.AuthApiKey(api_key=weaviate_api_key)
-        return weaviate.Client(
-            url=f"{weaviate_host}:{weaviate_port}",
-            auth_client_secret=auth_config,
-        )
-
-    # Function to ingest data to Weaviate
-    def ingest(index_name, splits, weaviate_client):
-        """Ingest documents into Weaviate."""
-        logger.info(f"Starting ingestion for index: {index_name}")
-        try:
-            #model_kwargs = {"trust_remote_code": True, "device": "cuda"}
-            model_kwargs = {"trust_remote_code": True}
-            embeddings = HuggingFaceEmbeddings(
-                model_name="nomic-ai/nomic-embed-text-v1",
-                model_kwargs=model_kwargs,
-                show_progress=True,
-            )
-
-            db = Weaviate(
-                embedding=embeddings,
-                client=weaviate_client,
-                index_name=index_name,
-                text_key="page_content",
-            )
-            db.add_documents(splits)
-            logger.info(f"Successfully uploaded documents to {index_name}")
-        except Exception as e:
-            logger.error(f"Error during ingestion for index {index_name}: {e}")
-
-    def create_index(weaviate_client, index_name, properties):
-        """
-        Create an index (class) in Weaviate.
-
-        Args:
-            weaviate_client (weaviate.Client): The Weaviate client instance.
-            index_name (str): The name of the index (class) to create.
-            properties (list): List of properties for the class schema. Each property is a dictionary with keys `name` and `dataType`.
-
-        Example:
-            properties = [
-                {"name": "page_content", "dataType": ["text"]},
-                {"name": "metadata", "dataType": ["text"]},
-            ]
-        """
-        try:
-            # Check if the index already exists
-            existing_classes = [cls["class"] for cls in weaviate_client.schema.get()["classes"]]
-            if index_name in existing_classes:
-                logger.info(f"Index '{index_name}' already exists. Skipping creation.")
-                return
-
-            # Define the schema for the new index
-            schema = {
-                "class": index_name,
-                "properties": properties,
-            }
-
-            # Create the index
-            weaviate_client.schema.create_class(schema)
-            logger.info(f"Successfully created index '{index_name}'.")
-
-        except Exception as e:
-            logger.error(f"Error creating index '{index_name}': {e}")
 
 
 @dsl.pipeline(name="Document Ingestion Pipeline")
