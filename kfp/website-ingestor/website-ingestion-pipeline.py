@@ -205,7 +205,7 @@ def process_and_store(input_artifact: Input[Artifact], url: str):
     logger.info(f"html_artifact: {html_artifact}")
 
     # Scrape and process the website
-    scraped_data = convert_to_md(html_artifact)  
+    scraped_data = convert_to_md(html_artifact, url)  
 
     if not scraped_data:
         logger.warning(f"No data found for {url}. Skipping ingestion.")
