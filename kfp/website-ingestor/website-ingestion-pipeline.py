@@ -218,7 +218,7 @@ def process_and_store(input_artifact: Input[Artifact], url: str, index_name: str
 def website_ingestion_pipeline(url: str, index_name: str):
     #url = "https://www.redhat.com/en/topics/containers/red-hat-openshift-okd"
     scrape_website_task=scrape_website(url=url)
-    process_and_store_task=process_and_store(url=url, input_artifact=scrape_website_task.outputs["html_artifact"])
+    process_and_store_task=process_and_store(url=url,index_name=index_name, input_artifact=scrape_website_task.outputs["html_artifact"])
 
     process_and_store_task.set_accelerator_type("nvidia.com/gpu").set_accelerator_limit("1")
     kubernetes.add_toleration(process_and_store_task, key="nvidia.com/gpu", operator="Exists", effect="NoSchedule")
