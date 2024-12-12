@@ -140,6 +140,30 @@ def get_embedding_model():
     embedding_model = HuggingFaceEmbeddings(model_name="nomic-ai/nomic-embed-text-v1", model_kwargs={"trust_remote_code": True})
     return embedding_model
 
+def search_weaviate_query(index_name, query):
+    from langchain_community.vectorstores import Weaviate
+
+    weaviate_client = get_weaviate_client()
+    model_kwargs = {"trust_remote_code": True}
+    embeddings = HuggingFaceEmbeddings(
+        model_name="nomic-ai/nomic-embed-text-v1",
+        model_kwargs=model_kwargs,
+        show_progress=True,
+    )
+
+    db = Weaviate(
+        embedding=embeddings,
+        client=weaviate_client,
+        index_name=index_name,
+        text_key="page_content", attributes=["source"]
+    )
+
+    docs = db.similarity_search(query)
+
+    #print(docs[0].metadata)
+    print(docs)
+
+
 def search_weaviate(query):
     client = get_weaviate_client()
     embedding_model = get_embedding_model()
@@ -332,6 +356,8 @@ def process_and_store(html_artifact: str, url: str):
                     content_header += f" / {split.metadata[header_name]}"
             content_header += "\n\nContent:\n"
             split.page_content = content_header + split.page_content
+             # Add the URL to the metadata
+            split.metadata["source"] = url            
             json_splits.append({"page_content": split.page_content, "metadata": split.metadata})
 
         logger.info(f"Successfully processed and converted content for {url}")
@@ -379,7 +405,6 @@ def process_and_store(html_artifact: str, url: str):
     # with open(input_artifact.path) as input_file:
     #     html_artifact = input_file.read()
 
-    logger.info(f"html_artifact: {html_artifact}")
 
     # Scrape and process the website
     scraped_data = convert_to_md(html_artifact, url)  
@@ -411,16 +436,15 @@ if __name__ == "__main__":
 
     index_name = "WebScrapedData"  # Replace with your Weaviate index name
     
+    #search query
+    search_weaviate_query(index_name, "What is Weaviate?")
+    
+    #load vector db
     #website_ingestion_pipeline()
     
     #get sample records    
-    # records = get_sample_records(index_name="WebScrapedData", limit=10)
-    # if records:
-    #     print("Sample records:")
-    #     for record in records:
-    #         print(record)
-    # else:
-    #     print("No records found in the index.")
+    #records = get_sample_records(index_name)
+
 
     # top_records = get_top_records(index_name)
     

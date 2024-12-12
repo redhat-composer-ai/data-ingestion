@@ -156,6 +156,8 @@ def process_and_store(input_artifact: Input[Artifact], url: str):
                     content_header += f" / {split.metadata[header_name]}"
             content_header += "\n\nContent:\n"
             split.page_content = content_header + split.page_content
+             # Add the URL to the metadata
+            split.metadata["source"] = url
             json_splits.append({"page_content": split.page_content, "metadata": split.metadata})
 
         logger.info(f"Successfully processed and converted content for {url}")
