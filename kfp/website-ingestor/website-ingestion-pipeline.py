@@ -60,7 +60,7 @@ def scrape_website(url: str, html_artifact: Output[Artifact]):
         "html2text==2024.2.26",
     ],
 )
-def process_and_store(input_artifact: Input[Artifact], url: str):
+def process_and_store(input_artifact: Input[Artifact], url: str, index_name: str):
     import weaviate
     import os
     import logging
@@ -92,22 +92,19 @@ def process_and_store(input_artifact: Input[Artifact], url: str):
             auth_client_secret=auth_config,
         )
 
-    def create_index(weaviate_client, index_name, properties):
+    def create_index(weaviate_client, index_name):
         """
         Create an index (class) in Weaviate.
 
         Args:
             weaviate_client (weaviate.Client): The Weaviate client instance.
             index_name (str): The name of the index (class) to create.
-            properties (list): List of properties for the class schema. Each property is a dictionary with keys `name` and `dataType`.
-
-        Example:
+        """
+        try:
             properties = [
                 {"name": "page_content", "dataType": ["text"]},
                 {"name": "metadata", "dataType": ["text"]},
             ]
-        """
-        try:
             # Check if the index already exists
             existing_classes = [cls["class"] for cls in weaviate_client.schema.get()["classes"]]
             if index_name in existing_classes:
@@ -194,18 +191,11 @@ def process_and_store(input_artifact: Input[Artifact], url: str):
 
 
     # Ensure the index (class) exists
-    index_name = "WebScrapedData"
-    properties = [
-        {"name": "page_content", "dataType": ["text"]},
-        {"name": "metadata", "dataType": ["text"]},
-    ]
-    create_index(weaviate_client, index_name, properties)
+    create_index(weaviate_client, index_name)
 
     # Reading artifact from previous step into variable
     with open(input_artifact.path) as input_file:
         html_artifact = input_file.read()
-
-    logger.info(f"html_artifact: {html_artifact}")
 
     # Scrape and process the website
     scraped_data = convert_to_md(html_artifact, url)  
@@ -215,7 +205,7 @@ def process_and_store(input_artifact: Input[Artifact], url: str):
         return
 
     # Prepare the data for ingestion
-    document_splits = [("WebScrapedData", [Document(page_content=split["page_content"], metadata=split["metadata"]) for split in scraped_data])]
+    document_splits = [(index_name, [Document(page_content=split["page_content"], metadata=split["metadata"]) for split in scraped_data])]
 
     # Ingest data in batches to Weaviate
     for index_name, splits in document_splits:
@@ -225,7 +215,7 @@ def process_and_store(input_artifact: Input[Artifact], url: str):
 
 
 @dsl.pipeline(name="Document Ingestion Pipeline")
-def website_ingestion_pipeline(url: str):
+def website_ingestion_pipeline(url: str, index_name: str):
     #url = "https://www.redhat.com/en/topics/containers/red-hat-openshift-okd"
     scrape_website_task=scrape_website(url=url)
     process_and_store_task=process_and_store(url=url, input_artifact=scrape_website_task.outputs["html_artifact"])
@@ -244,6 +234,7 @@ def website_ingestion_pipeline(url: str):
 if __name__ == "__main__":
     KUBEFLOW_ENDPOINT = os.getenv("KUBEFLOW_ENDPOINT")
     WEBSITE_URL = os.getenv("WEBSITE_URL")
+    VECTORDB_INDEX = os.getenv("VECTORDB_INDEX")
     print(f"Connecting to kfp: {KUBEFLOW_ENDPOINT}")
     sa_token_path = "/run/secrets/kubernetes.io/serviceaccount/token" # noqa: S105
     if os.path.isfile(sa_token_path):
@@ -268,7 +259,8 @@ if __name__ == "__main__":
         experiment_name="website_ingestion",
         enable_caching=False,
         arguments={
-        "url": WEBSITE_URL
+        "url": WEBSITE_URL,
+        "index_name": VECTORDB_INDEX
         }
     )
 

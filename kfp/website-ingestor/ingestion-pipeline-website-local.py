@@ -260,7 +260,7 @@ def scrape_website(url: str):
     #     f.write(html_content)
     return str(main_content)
 
-def process_and_store(html_artifact: str, url: str):
+def process_and_store(html_artifact: str, url: str, index_name: str):
     import weaviate
     import os
     import logging
@@ -293,21 +293,11 @@ def process_and_store(html_artifact: str, url: str):
         )
 
     def create_index(weaviate_client, index_name, properties):
-        """
-        Create an index (class) in Weaviate.
-
-        Args:
-            weaviate_client (weaviate.Client): The Weaviate client instance.
-            index_name (str): The name of the index (class) to create.
-            properties (list): List of properties for the class schema. Each property is a dictionary with keys `name` and `dataType`.
-
-        Example:
+        try:
             properties = [
                 {"name": "page_content", "dataType": ["text"]},
                 {"name": "metadata", "dataType": ["text"]},
             ]
-        """
-        try:
             # Check if the index already exists
             existing_classes = [cls["class"] for cls in weaviate_client.schema.get()["classes"]]
             if index_name in existing_classes:
@@ -394,12 +384,7 @@ def process_and_store(html_artifact: str, url: str):
 
 
     # Ensure the index (class) exists
-    index_name = "WebScrapedData"
-    properties = [
-        {"name": "page_content", "dataType": ["text"]},
-        {"name": "metadata", "dataType": ["text"]},
-    ]
-    create_index(weaviate_client, index_name, properties)
+    create_index(weaviate_client, index_name)
 
     # Reading artifact from previous step into variable
     # with open(input_artifact.path) as input_file:
@@ -414,7 +399,7 @@ def process_and_store(html_artifact: str, url: str):
         return
 
     # Prepare the data for ingestion
-    document_splits = [("WebScrapedData", [Document(page_content=split["page_content"], metadata=split["metadata"]) for split in scraped_data])]
+    document_splits = [(index_name, [Document(page_content=split["page_content"], metadata=split["metadata"]) for split in scraped_data])]
 
     # Ingest data in batches to Weaviate
     for index_name, splits in document_splits:
@@ -424,10 +409,9 @@ def process_and_store(html_artifact: str, url: str):
 
 
 
-def website_ingestion_pipeline():
-    url = "https://www.redhat.com/en/topics/containers/red-hat-openshift-okd"
+def website_ingestion_pipeline(url, index_name):
     scrape_website_task=scrape_website(url=url)
-    process_and_store(url=url, html_artifact=scrape_website_task)
+    process_and_store(url=url, html_artifact=scrape_website_task, index_name=index_name)
 
 
 if __name__ == "__main__":
@@ -437,10 +421,10 @@ if __name__ == "__main__":
     index_name = "WebScrapedData"  # Replace with your Weaviate index name
     
     #search query
-    search_weaviate_query(index_name, "What is Weaviate?")
+    search_weaviate_query(index_name, "What is OpenShift?")
     
     #load vector db
-    #website_ingestion_pipeline()
+    #website_ingestion_pipeline("https://www.redhat.com/en/topics/containers/red-hat-openshift-okd", index_name)
     
     #get sample records    
     #records = get_sample_records(index_name)
