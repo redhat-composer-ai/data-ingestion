@@ -371,10 +371,10 @@ def ingestion_pipeline():
 
     kubernetes.use_secret_as_env(
         ingest_docs_task,
-        secret_name="elasticsearch-sample-es-elastic-user",
+        secret_name="elasticsearch-es-elastic-user",
         secret_key_to_env={"elastic": "ES_PASS"},
     )
-    ingest_docs_task.set_env_variable("ES_HOST", "http://elasticsearch-sample-es-http:9200")
+    ingest_docs_task.set_env_variable("ES_HOST", "http://elasticsearch-es-http:9200")
     ingest_docs_task.set_env_variable("ES_USER", "elastic")
 
     kubernetes.add_toleration(format_docs_task, key="nvidia.com/gpu", operator="Exists", effect="NoSchedule")
