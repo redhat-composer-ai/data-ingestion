@@ -1,3 +1,7 @@
+# exclude data
+/data/
+
+#exclude locally rendered pipelines
 pipelines/*.yaml
 
 # Byte-compiled / optimized / DLL files
