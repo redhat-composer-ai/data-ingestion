@@ -406,6 +406,6 @@ if __name__ == "__main__":
     result = client.create_run_from_pipeline_func(
         ingestion_pipeline,
         experiment_name="document_ingestion",
-        # enable_caching=False
+        enable_caching=False
     )
 
