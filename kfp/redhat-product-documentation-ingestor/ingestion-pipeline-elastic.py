@@ -371,7 +371,7 @@ def ingestion_pipeline():
 
     kubernetes.use_secret_as_env(
         ingest_docs_task,
-        secret_name="elasticsearch-es-elastic-user",
+        secret_name="elasticsearch-operator/elasticsearch-es-elastic-user",
         secret_key_to_env={"elastic": "ES_PASS"},
     )
     ingest_docs_task.set_env_variable("ES_HOST", "http://elasticsearch-es-http.elasticsearch-operator.svc.cluster.local:9200")
