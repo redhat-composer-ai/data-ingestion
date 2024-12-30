@@ -10,7 +10,7 @@ from kfp.dsl import Artifact
 load_dotenv(override=True)
 
 kubeflow_endpoint = os.environ["KUBEFLOW_ENDPOINT"]
-base_image = os.getenv("BASE_IMAGE", "image-registry.openshift-image-registry.svc:5000/openshift/python:latest")
+base_image = os.getenv("BASE_IMAGE", "registry.access.redhat.com/ubi9/python-311:latest")
 
 
 @dsl.component(base_image=base_image)
@@ -39,7 +39,7 @@ def ingest_document(document: Artifact):
 def ingestion_pipeline():
     download_document_task = download_document()
     convert_to_markdown_task = convert_to_markdown(raw_document=download_document_task.output)
-    ingest_document_task = ingest_document(document=convert_to_markdown_task.output)
+    ingest_document(document=convert_to_markdown_task.output)
 
 
 if __name__ == "__main__":
