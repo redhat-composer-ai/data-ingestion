@@ -10,6 +10,7 @@ load_dotenv(override=True)
 
 kubeflow_endpoint = os.environ["KUBEFLOW_ENDPOINT"]
 
+
 def execute_pipeline_run(pipeline: BaseComponent, experiment: str):
     logger.info(f"Connecting to kfp: {kubeflow_endpoint}")
 
@@ -39,6 +40,7 @@ def execute_pipeline_run(pipeline: BaseComponent, experiment: str):
     )
     result = client.create_run_from_pipeline_func(pipeline, arguments={}, experiment_name=experiment)
     logger.info(f"Starting pipeline run with run_id: {result.run_id}")
+
 
 def compile_pipeline(pipeline: BaseComponent):
     logger.info("Compiling pipeline")
