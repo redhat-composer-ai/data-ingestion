@@ -28,9 +28,9 @@ def load_documents() -> List:
             "en-US",
         ),
         Product(
-            "red_hat_enterprise_linux", 
-            "Red Hat Enterprise Linux 9", 
-            "9", 
+            "red_hat_enterprise_linux",
+            "Red Hat Enterprise Linux 9",
+            "9",
             "en-US"
         ),
         Product(
@@ -327,9 +327,9 @@ def ingest_documents(input_artifact: Input[Artifact]):
         exit(1)
 
     # Iniatilize Elastic client
-    es_client = Elasticsearch(es_host, 
-                              basic_auth=(es_user, es_pass), 
-                              request_timeout=30, 
+    es_client = Elasticsearch(es_host,
+                              basic_auth=(es_user, es_pass),
+                              request_timeout=30,
                               verify_certs=False)
 
     # # Health check for elastic client connection
@@ -408,4 +408,3 @@ if __name__ == "__main__":
         experiment_name="document_ingestion",
         # enable_caching=False
     )
-

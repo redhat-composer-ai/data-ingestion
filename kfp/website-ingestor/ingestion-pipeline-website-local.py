@@ -32,12 +32,12 @@ def get_weaviate_client():
 def get_top_records(index_name, limit=10):
     """
     Fetch the top N records from a specific index in Weaviate.
-    
+
     Args:
         weaviate_client: The Weaviate client instance.
         index_name (str): The name of the index (class) to query.
         limit (int): The maximum number of records to fetch (default is 10).
-    
+
     Returns:
         List of records or an error message if the operation fails.
     """
@@ -55,15 +55,15 @@ def get_top_records(index_name, limit=10):
         }}
     }}
     """
-    
+
     try:
         response = weaviate_client.query.raw(query)
         data = response.get("data", {}).get("Get", {}).get(index_name, [])
-        
+
         if not data:
             logger.warning(f"No records found for index: {index_name}")
             return []
-        
+
         logger.info(f"Successfully fetched {len(data)} records from index: {index_name}")
         return data
     except Exception as e:
@@ -74,20 +74,20 @@ def get_top_records(index_name, limit=10):
 def list_collections():
     """List all collections (classes) in the Weaviate instance."""
     client = get_weaviate_client()
-    
+
     try:
         # Fetch the schema which contains the list of collections
         schema = client.schema.get()
         classes = schema.get('classes', [])
-        
+
         if not classes:
             logger.info("No collections found.")
             return
-        
+
         logger.info("Listing all collections:")
         for idx, collection in enumerate(classes):
             logger.info(f"Collection {idx+1}: {collection['class']}")
-    
+
     except Exception as e:
         logger.error(f"Error fetching collections: {e}")
 
@@ -96,7 +96,7 @@ def get_record_count(index_name):
     client = get_weaviate_client()
 
     try:
-        
+
         logger.info(f"Start Raw query")
         # Query for the count of records in the specific index (class)
         result = client.query.get(index_name, ["title"]).do()
@@ -232,9 +232,9 @@ def get_sample_records(index_name, limit=10):
 # Function to scrape and convert website content to Markdown
 def scrape_website(url: str):
     import requests
-    import logging        
+    import logging
     from bs4 import BeautifulSoup
-    
+
     # Set up logging
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     logger = logging.getLogger(__name__)
@@ -249,7 +249,7 @@ def scrape_website(url: str):
 
     soup = BeautifulSoup(response.text, "html.parser")
     main_content = soup.find("body")  # Adjust if necessary to locate main content
-    
+
     if not main_content:
         logger.error("Could not find main content on the webpage.")
         return []
@@ -347,7 +347,7 @@ def process_and_store(html_artifact: str, url: str, index_name: str):
             content_header += "\n\nContent:\n"
             split.page_content = content_header + split.page_content
              # Add the URL to the metadata
-            split.metadata["source"] = url            
+            split.metadata["source"] = url
             json_splits.append({"page_content": split.page_content, "metadata": split.metadata})
 
         logger.info(f"Successfully processed and converted content for {url}")
@@ -392,7 +392,7 @@ def process_and_store(html_artifact: str, url: str, index_name: str):
 
 
     # Scrape and process the website
-    scraped_data = convert_to_md(html_artifact, url)  
+    scraped_data = convert_to_md(html_artifact, url)
 
     if not scraped_data:
         logger.warning(f"No data found for {url}. Skipping ingestion.")
@@ -419,19 +419,19 @@ if __name__ == "__main__":
     #list_collections()
 
     index_name = "WebScrapedData"  # Replace with your Weaviate index name
-    
+
     #search query
     search_weaviate_query(index_name, "What is OpenShift?")
-    
+
     #load vector db
     #website_ingestion_pipeline("https://www.redhat.com/en/topics/containers/red-hat-openshift-okd", index_name)
-    
-    #get sample records    
+
+    #get sample records
     #records = get_sample_records(index_name)
 
 
     # top_records = get_top_records(index_name)
-    
+
     # if top_records:
     #     for i, record in enumerate(top_records, 1):
     #         print(f"Record {i}:\nContent: {record['page_content']}\nMetadata: {record['metadata']}\n")
@@ -439,11 +439,11 @@ if __name__ == "__main__":
     #     print(f"No records found for index: {index_name}")
 
     #fetch_top_10_records_and_count(index_name)
-    
+
     # record_count = get_record_count(index_name)
     # if record_count is not None:
     #     logger.info(f"Total records in '{index_name}': {record_count}")
-    
+
     #delte index
     #delete_index(index_name)
 

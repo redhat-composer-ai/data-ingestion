@@ -1,7 +1,7 @@
 #add below line in ~/.bashrc
 #alias python=/opt/homebrew/bin/python3
 
-python3 -m venv venv 
+python3 -m venv venv
 source ./venv/bin/activate
 
 

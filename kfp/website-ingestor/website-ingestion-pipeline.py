@@ -22,9 +22,9 @@ from kfp.dsl import Artifact, Input, Output
 )
 def scrape_website(url: str, html_artifact: Output[Artifact]):
     import requests
-    import logging        
+    import logging
     from bs4 import BeautifulSoup
-    
+
     # Set up logging
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     logger = logging.getLogger(__name__)
@@ -39,7 +39,7 @@ def scrape_website(url: str, html_artifact: Output[Artifact]):
 
     soup = BeautifulSoup(response.text, "html.parser")
     main_content = soup.find("body")  # Adjust if necessary to locate main content
-    
+
     if not main_content:
         logger.error("Could not find main content on the webpage.")
         return []
@@ -198,7 +198,7 @@ def process_and_store(input_artifact: Input[Artifact], url: str, index_name: str
         html_artifact = input_file.read()
 
     # Scrape and process the website
-    scraped_data = convert_to_md(html_artifact, url)  
+    scraped_data = convert_to_md(html_artifact, url)
 
     if not scraped_data:
         logger.warning(f"No data found for {url}. Skipping ingestion.")
@@ -229,7 +229,7 @@ def website_ingestion_pipeline(url: str, index_name: str):
         secret_key_to_env={"AUTHENTICATION_APIKEY_ALLOWED_KEYS": "WEAVIATE_API_KEY"},
     )
     process_and_store_task.set_env_variable("WEAVIATE_HOST", "http://weaviate-vector-db")
-    process_and_store_task.set_env_variable("WEAVIATE_PORT", "8080")    
+    process_and_store_task.set_env_variable("WEAVIATE_PORT", "8080")
 
 if __name__ == "__main__":
     KUBEFLOW_ENDPOINT = os.getenv("KUBEFLOW_ENDPOINT")
