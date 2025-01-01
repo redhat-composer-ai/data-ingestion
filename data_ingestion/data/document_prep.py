@@ -3,11 +3,11 @@ from pathlib import Path
 
 def create_data_folders(data_folder_location: str = "./data") -> Path:
     data_folder = Path(data_folder_location)
-    raw_folder = data_folder.joinpath("raw")
-    processed_folder = data_folder.joinpath("processed")
+    folder_names = ["raw", "intermediate", "processed"]
 
-    raw_folder.mkdir(parents=True, exist_ok=True)
-    processed_folder.mkdir(parents=True, exist_ok=True)
+    for folder_name in folder_names:
+        folder = data_folder.joinpath(folder_name)
+        folder.mkdir(parents=True, exist_ok=True)
 
     return data_folder
 

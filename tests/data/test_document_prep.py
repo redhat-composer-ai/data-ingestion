@@ -17,6 +17,7 @@ def verify_folders_created(data_folder_location: Path):
     Helper function to verify if the data subfolders folders are created.
     """
     assert (data_folder_location / "raw").exists()
+    assert (data_folder_location / "intermediate").exists()
     assert (data_folder_location / "processed").exists()
 
 
@@ -41,10 +42,12 @@ def test_create_data_folders_when_folders_already_exist(temporary_directory: Pat
     """Test create_data_folders when the folders already exist."""
     data_folder_location = temporary_directory / "data"
     raw_folder = data_folder_location / "raw"
+    intermediate_folder = data_folder_location / "intermediate"
     processed_folder = data_folder_location / "processed"
 
     # Manually create the folders
     raw_folder.mkdir(parents=True)
+    intermediate_folder.mkdir(parents=True)
     processed_folder.mkdir(parents=True)
 
     # Ensure the folders exist
