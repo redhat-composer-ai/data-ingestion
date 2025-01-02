@@ -11,6 +11,7 @@ from kfp.dsl import Artifact, Input, Output
     base_image="python:3.11",
     packages_to_install=[
         "beautifulsoup4==4.12.2",
+        "requests==2.32.3",
         "html2text==2024.2.26",
         "lxml==5.1.0",
         "pypdf==4.0.2",
