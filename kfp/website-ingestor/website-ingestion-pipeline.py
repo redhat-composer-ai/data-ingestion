@@ -8,15 +8,13 @@ from kfp.dsl import Artifact, Input, Output
 
 # Function to scrape and convert website content to Markdown
 @dsl.component(
-    base_image="python:3.9",
+    base_image="python:3.11",
     packages_to_install=[
         "beautifulsoup4==4.12.2",
         "html2text==2024.2.26",
-        "langchain==0.1.12",
         "lxml==5.1.0",
         "pypdf==4.0.2",
         "tqdm==4.66.2",
-        "weaviate-client==3.26.2",
         "torch==2.4.0",
     ],
 )
@@ -51,78 +49,92 @@ def scrape_website(url: str, html_artifact: Output[Artifact]):
 
 
 @dsl.component(
-    base_image="image-registry.openshift-image-registry.svc:5000/redhat-ods-applications/pytorch:2024.1",
+    base_image="image-registry.openshift-image-registry.svc:5000/redhat-ods-applications/minimal-gpu:2024.2",
     packages_to_install=[
-        "langchain==0.1.12",
-        "weaviate-client==3.26.2",
+        "langchain-community==0.3.8",
+        "langchain==0.3.8",
         "sentence-transformers==2.4.0",
         "einops==0.7.0",
         "html2text==2024.2.26",
+        "elastic-transport==8.15.1",
+        "elasticsearch==8.16.0",
+        "langchain-elasticsearch==0.3.0",        
     ],
 )
 def process_and_store(input_artifact: Input[Artifact], url: str, index_name: str):
-    import weaviate
+    from elasticsearch import Elasticsearch
     import os
     import logging
     from langchain_community.embeddings import HuggingFaceEmbeddings
     from langchain_core.documents import Document
     from langchain_community.document_transformers import Html2TextTransformer
     from langchain_text_splitters import MarkdownHeaderTextSplitter, RecursiveCharacterTextSplitter
-    from langchain_community.vectorstores import Weaviate
+    from langchain_elasticsearch import ElasticsearchStore
 
     # Set up logging
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     logger = logging.getLogger(__name__)
 
    # Function to get Weaviate client
-    def get_weaviate_client():
+    def get_es_client():
         """Get the Weaviate client."""
-        logger.info("Fetching Weaviate client...")
-        weaviate_api_key = os.getenv("WEAVIATE_API_KEY")
-        weaviate_host = os.getenv("WEAVIATE_HOST")
-        weaviate_port = os.getenv("WEAVIATE_PORT")
+        logger.info("Fetching es client...")
 
-        if not all([weaviate_api_key, weaviate_host, weaviate_port]):
-            logger.error("Weaviate config not present. Check host, port, and API key.")
+        es_user = os.environ.get("ES_USER")
+        es_pass = os.environ.get("ES_PASS")
+        es_host = os.environ.get("ES_HOST")
+
+        if not es_user or not es_pass or not es_host:
+            print("Elasticsearch config not present. Check host, port and api_key")
             exit(1)
+        # Iniatilize Elastic client
+        es_client = Elasticsearch(es_host, 
+                                basic_auth=(es_user, es_pass), 
+                                request_timeout=30, 
+                                verify_certs=False)
 
-        auth_config = weaviate.auth.AuthApiKey(api_key=weaviate_api_key)
-        return weaviate.Client(
-            url=f"{weaviate_host}:{weaviate_port}",
-            auth_client_secret=auth_config,
-        )
+        # # Health check for elastic client connection
+        print(f"Elastic Client status: {es_client.health_report()}")
 
-    def create_index(weaviate_client, index_name):
+        return es_client
+    
+    def create_index(es_client: Elasticsearch, index_name: str, mappings: dict = None):
         """
-        Create an index (class) in Weaviate.
+        Create an index in Elasticsearch.
 
         Args:
-            weaviate_client (weaviate.Client): The Weaviate client instance.
-            index_name (str): The name of the index (class) to create.
+            es_client (Elasticsearch): The Elasticsearch client instance.
+            index_name (str): The name of the index to create.
+            mappings (dict, optional): The mappings and settings for the index. Defaults to a predefined structure.
+
+        Returns:
+            bool: True if the index was created, False if it already exists.
         """
         try:
-            properties = [
-                {"name": "page_content", "dataType": ["text"]},
-                {"name": "metadata", "dataType": ["text"]},
-            ]
             # Check if the index already exists
-            existing_classes = [cls["class"] for cls in weaviate_client.schema.get()["classes"]]
-            if index_name in existing_classes:
+            if es_client.indices.exists(index=index_name):
                 logger.info(f"Index '{index_name}' already exists. Skipping creation.")
-                return
+                return False
 
-            # Define the schema for the new index
-            schema = {
-                "class": index_name,
-                "properties": properties,
-            }
+            # Default mappings if none are provided
+            if mappings is None:
+                mappings = {
+                    "mappings": {
+                        "properties": {
+                            "page_content": {"type": "text"},
+                            "metadata": {"type": "text"}
+                        }
+                    }
+                }
 
             # Create the index
-            weaviate_client.schema.create_class(schema)
+            es_client.indices.create(index=index_name, body=mappings)
             logger.info(f"Successfully created index '{index_name}'.")
+            return True
 
         except Exception as e:
             logger.error(f"Error creating index '{index_name}': {e}")
+            raise
 
     def convert_to_md(html_content, url):
         # Convert HTML to Markdown using Html2Text
@@ -161,8 +173,8 @@ def process_and_store(input_artifact: Input[Artifact], url: str, index_name: str
         return json_splits
 
     # Function to ingest data to Weaviate
-    def ingest(index_name, splits, weaviate_client):
-        """Ingest documents into Weaviate."""
+    def ingest(index_name, splits, es_client):
+        """Ingest documents into Elasticsearch."""
         logger.info(f"Starting ingestion for index: {index_name}")
         try:
             #model_kwargs = {"trust_remote_code": True, "device": "cuda"}
@@ -173,11 +185,10 @@ def process_and_store(input_artifact: Input[Artifact], url: str, index_name: str
                 show_progress=True,
             )
 
-            db = Weaviate(
+            db = ElasticsearchStore(
+                index_name=index_name.lower(),  # index names in elastic must be lowercase
                 embedding=embeddings,
-                client=weaviate_client,
-                index_name=index_name,
-                text_key="page_content",
+                es_connection=es_client,
             )
             db.add_documents(splits)
             logger.info(f"Successfully uploaded documents to {index_name}")
@@ -187,11 +198,11 @@ def process_and_store(input_artifact: Input[Artifact], url: str, index_name: str
 
     """Process the website content and add it to the Weaviate store."""
     logger.info(f"Starting processing for URL: {url}")
-    weaviate_client = get_weaviate_client()
+    es_client = get_es_client()
 
 
     # Ensure the index (class) exists
-    create_index(weaviate_client, index_name)
+    create_index(es_client, index_name)
 
     # Reading artifact from previous step into variable
     with open(input_artifact.path) as input_file:
@@ -209,7 +220,7 @@ def process_and_store(input_artifact: Input[Artifact], url: str, index_name: str
 
     # Ingest data in batches to Weaviate
     for index_name, splits in document_splits:
-        ingest(index_name=index_name, splits=splits, weaviate_client=weaviate_client)
+        ingest(index_name=index_name, splits=splits, es_client=es_client)
 
     logger.info(f"Finished processing for URL: {url}")
 
@@ -225,11 +236,11 @@ def website_ingestion_pipeline(url: str, index_name: str):
 
     kubernetes.use_secret_as_env(
         process_and_store_task,
-        secret_name="weaviate-api-key-secret", # noqa: S106
-        secret_key_to_env={"AUTHENTICATION_APIKEY_ALLOWED_KEYS": "WEAVIATE_API_KEY"},
+        secret_name="elasticsearch-es-elastic-user",
+        secret_key_to_env={"elastic": "ES_PASS"},
     )
-    process_and_store_task.set_env_variable("WEAVIATE_HOST", "http://weaviate-vector-db")
-    process_and_store_task.set_env_variable("WEAVIATE_PORT", "8080")    
+    process_and_store_task.set_env_variable("ES_HOST", "http://elasticsearch-es-http:9200")
+    process_and_store_task.set_env_variable("ES_USER", "elastic")
 
 if __name__ == "__main__":
     KUBEFLOW_ENDPOINT = os.getenv("KUBEFLOW_ENDPOINT")
