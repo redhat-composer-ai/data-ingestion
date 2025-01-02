@@ -45,4 +45,4 @@ select = [
 "tests/*" = ["S101", "ANN"]
 
 [tool.ruff.lint.flake8-annotations]
-suppress-none-returning = true
+suppress-none-returning = true # disable the requirement for type hint return None for functions without a return
