@@ -246,7 +246,7 @@ def website_ingestion_pipeline(url: str, index_name: str):
 if __name__ == "__main__":
     KUBEFLOW_ENDPOINT = os.getenv("KUBEFLOW_ENDPOINT")
     WEBSITE_URL = os.getenv("WEBSITE_URL")
-    VECTORDB_INDEX = os.getenv("VECTORDB_INDEX")
+    VECTORDB_INDEX = os.getenv("VECTORDB_INDEX").lower()
     print(f"Connecting to kfp: {KUBEFLOW_ENDPOINT}")
     sa_token_path = "/run/secrets/kubernetes.io/serviceaccount/token" # noqa: S105
     if os.path.isfile(sa_token_path):
