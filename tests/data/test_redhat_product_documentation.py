@@ -1,16 +1,19 @@
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 from bs4 import BeautifulSoup
 
 # Assuming the function is in a module called 'doc_scraper'
 from data_ingestion.data.redhat_product_documentation import get_product_pages
 
+
 @pytest.fixture
 def mock_loader():
     """Fixture to mock the WebBaseLoader and its scrape method."""
-    with patch("data_ingestion.data.redhat_product_documentation.WebBaseLoader") as MockLoader:
-        mock_instance = MockLoader.return_value
+    with patch("data_ingestion.data.redhat_product_documentation.WebBaseLoader") as mock_loader:
+        mock_instance = mock_loader.return_value
         yield mock_instance
+
 
 @pytest.fixture
 def example_en_html():
@@ -25,6 +28,7 @@ def example_en_html():
     </html>
     """
 
+
 @pytest.fixture
 def example_fr_html():
     """Fixture for example HTML content to mock the scraped webpage."""
@@ -38,6 +42,7 @@ def example_fr_html():
     </html>
     """
 
+
 def test_get_product_pages_success(mock_loader, example_en_html):
     """Test successful retrieval and filtering of product pages."""
     # Mock the scrape method to return the example HTML content
@@ -47,14 +52,12 @@ def test_get_product_pages_success(mock_loader, example_en_html):
     product = "test-product"
     version = "1.0"
     language = "en"
-    
+
     pages = get_product_pages(product, version, language)
-    
+
     # Assert the result
-    assert pages == [
-        "/en/documentation/html-single/some-page-1",
-        "/en/documentation/html-single/some-page-2"
-    ]
+    assert pages == ["/en/documentation/html-single/some-page-1", "/en/documentation/html-single/some-page-2"]
+
 
 def test_get_product_non_english_pages_success(mock_loader, example_fr_html):
     """Test successful retrieval and filtering of product pages."""
@@ -65,14 +68,12 @@ def test_get_product_non_english_pages_success(mock_loader, example_fr_html):
     product = "test-product"
     version = "1.0"
     language = "fr"
-    
+
     pages = get_product_pages(product, version, language)
-    
+
     # Assert the result
-    assert pages == [
-        "/fr/documentation/html-single/some-page-1",
-        "/fr/documentation/html-single/some-page-2"
-    ]
+    assert pages == ["/fr/documentation/html-single/some-page-1", "/fr/documentation/html-single/some-page-2"]
+
 
 def test_get_product_pages_no_links(mock_loader):
     """Test the case where no links are found."""
@@ -88,6 +89,7 @@ def test_get_product_pages_no_links(mock_loader):
 
     # Assert the result
     assert pages == []
+
 
 def test_get_product_pages_invalid_language(mock_loader):
     """Test the case where links do not match the language prefix."""

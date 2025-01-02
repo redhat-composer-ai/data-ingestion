@@ -1,6 +1,6 @@
 from bs4 import BeautifulSoup
-from loguru import logger
 from langchain_community.document_loaders.web_base import WebBaseLoader
+from loguru import logger
 
 
 def get_product_pages(product: str, version: str, language: str) -> list[str]:
@@ -24,7 +24,7 @@ def get_product_pages(product: str, version: str, language: str) -> list[str]:
     for match in new_soup.findAll("a"):
         logger.debug(f"Found unfiltered link: {match.get('href')}")
         links.append(match.get("href"))
-    
+
     # Filter the links to include only those that start with "/en/documentation"
     filtered_links = []
     for url in links:
