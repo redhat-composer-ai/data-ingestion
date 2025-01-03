@@ -123,7 +123,7 @@ def process_and_store(input_artifact: Input[Artifact], url: str, index_name: str
                     "mappings": {
                         "properties": {
                             "page_content": {"type": "text"},
-                            "metadata": {"type": "text"}
+                            "metadata": {"type": "object"}
                         }
                     }
                 }
@@ -191,6 +191,7 @@ def process_and_store(input_artifact: Input[Artifact], url: str, index_name: str
                 embedding=embeddings,
                 es_connection=es_client,
             )
+            logger.info(f"Insert data into DB")
             db.add_documents(splits)
             logger.info(f"Successfully uploaded documents to {index_name}")
         except Exception as e:
