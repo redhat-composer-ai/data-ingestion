@@ -18,25 +18,7 @@ def load_documents() -> List:
         Product(
             "red_hat_openshift_ai_self-managed",
             "Red Hat OpenShift AI Self-Managed",
-            "2.14",
-            "en-US",
-        ),
-        Product(
-            "openshift_container_platform",
-            "Red Hat OpenShift Container Platform",
-            "4.17",
-            "en-US",
-        ),
-        Product(
-            "red_hat_enterprise_linux", 
-            "Red Hat Enterprise Linux 9", 
-            "9", 
-            "en-US"
-        ),
-        Product(
-            "red_hat_ansible_automation_platform",
-            "Red Hat Ansible Automation Platform",
-            "2.5",
+            "2.16",
             "en-US",
         ),
     ]
