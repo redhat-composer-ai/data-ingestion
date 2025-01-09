@@ -372,8 +372,10 @@ def ingestion_pipeline():
     ingest_docs_task.set_env_variable("WEAVIATE_PORT", "8080")
 
     kubernetes.add_toleration(format_docs_task, key="nvidia.com/gpu", operator="Exists", effect="NoSchedule")
+    kubernetes.add_toleration(format_docs_task, key="nvidia.com/gpu", operator="Exists", effect="NoSchedule", value="True")
 
     kubernetes.add_toleration(ingest_docs_task, key="nvidia.com/gpu", operator="Exists", effect="NoSchedule")
+    kubernetes.add_toleration(ingest_docs_task, key="nvidia.com/gpu", operator="Exists", effect="NoSchedule", value="True")
 
 
 if __name__ == "__main__":
