@@ -1,6 +1,8 @@
 import os
 import sys
 
+from typing import Optional
+
 from dotenv import load_dotenv
 from loguru import logger
 
@@ -12,7 +14,7 @@ load_dotenv(override=True)
 kubeflow_endpoint = os.environ["KUBEFLOW_ENDPOINT"]
 
 
-def execute_pipeline_run(pipeline: BaseComponent, experiment: str):
+def execute_pipeline_run(pipeline: BaseComponent, experiment: str, arguments: Optional[dict] = None ):
     logger.info(f"Connecting to kfp: {kubeflow_endpoint}")
 
     sa_token_path = "/run/secrets/kubernetes.io/serviceaccount/token"  # noqa: S105
@@ -39,7 +41,7 @@ def execute_pipeline_run(pipeline: BaseComponent, experiment: str):
         existing_token=bearer_token,
         ssl_ca_cert=ssl_ca_cert,
     )
-    result = client.create_run_from_pipeline_func(pipeline, arguments={}, experiment_name=experiment)
+    result = client.create_run_from_pipeline_func(pipeline, arguments=arguments, experiment_name=experiment)
     logger.info(f"Starting pipeline run with run_id: {result.run_id}")
 
 
