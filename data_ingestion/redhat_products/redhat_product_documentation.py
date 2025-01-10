@@ -7,6 +7,58 @@ from langchain_community.document_loaders.web_base import WebBaseLoader
 from loguru import logger
 
 
+class RedHatProductDocumentation:
+    def __init__(self, product: str, version: str, language: str = "en"):
+        self.documentation_url = "https://access.redhat.com/documentation"
+        self.product = product
+        self.version = str(version)
+        self.language = language
+        self.product_url = [self.documentation_url + "/" + self.language + "/" + self.product + "/" + self.version]
+
+    def product_pages(self) -> list[str]:
+        """Get the list of pages from the Red Hat product documentation."""
+        soup = self._scrape()
+
+        # Select only the element titles that contain the links to the documentation pages
+        filtered_elements = soup.find_all("h3", attrs={"slot": "headline"})
+        new_soup = BeautifulSoup("", "lxml")
+        for element in filtered_elements:
+            new_soup.append(element)
+
+        # Extract all the links
+        links = []
+        for match in new_soup.findAll("a"):
+            logger.debug(f"Found unfiltered link: {match.get('href')}")
+            links.append(match.get("href"))
+
+        # Filter the links to include only those that start with "/en/documentation"
+        filtered_links = []
+        for url in links:
+            if url.startswith(f"/{self.language}/documentation"):
+                logger.debug(f"Found filtered link: {url}")
+                filtered_links.append(url)
+
+        # Swap the URL with the single page link
+        pages = []
+        for link in filtered_links:
+            if "/html/" in link:
+                pages.append(link.replace("/html/", "/html-single/"))
+
+        # add the base URL to all of the found pages
+        pages = [f"{self.documentation_url}/{page}" for page in pages]
+
+        logger.info(f"Found {len(pages)} documents")
+        logger.debug(f"Documentation pages found: {pages}")
+        return pages
+
+    def _scrape(self) -> BeautifulSoup:
+        logger.info(f"Scraping {self.product_url} for document list")
+        loader = WebBaseLoader(self.product_url)
+        soup = loader.scrape()
+
+        return soup
+
+
 def get_product_pages(product: str, version: str, language: str) -> list[str]:
     """Get the list of pages from the Red Hat product documentation."""
 
