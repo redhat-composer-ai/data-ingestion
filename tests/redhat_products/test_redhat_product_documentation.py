@@ -3,14 +3,12 @@ from unittest.mock import patch
 import pytest
 from bs4 import BeautifulSoup
 
-# Assuming the function is in a module called 'doc_scraper'
-from data_ingestion.data.redhat_product_documentation import get_product_pages
-
+from data_ingestion.redhat_products.redhat_product_documentation import get_product_pages
 
 @pytest.fixture
 def mock_loader():
     """Fixture to mock the WebBaseLoader and its scrape method."""
-    with patch("data_ingestion.data.redhat_product_documentation.WebBaseLoader") as mock_loader:
+    with patch("data_ingestion.redhat_products.redhat_product_documentation.WebBaseLoader") as mock_loader:
         mock_instance = mock_loader.return_value
         yield mock_instance
 
