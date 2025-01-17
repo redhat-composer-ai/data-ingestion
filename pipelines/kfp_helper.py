@@ -11,10 +11,10 @@ from kfp.components import BaseComponent
 
 load_dotenv(override=True)
 
-kubeflow_endpoint = os.environ["KUBEFLOW_ENDPOINT"]
-
 
 def execute_pipeline_run(pipeline: BaseComponent, experiment: str, arguments: Optional[dict] = None ):
+    kubeflow_endpoint = os.environ["KUBEFLOW_ENDPOINT"]
+
     logger.info(f"Connecting to kfp: {kubeflow_endpoint}")
 
     sa_token_path = "/run/secrets/kubernetes.io/serviceaccount/token"  # noqa: S105
