@@ -3,8 +3,7 @@ from typing import Tuple, Union
 
 from langchain_core.documents import Document
 
-from data_ingestion.data.redhat_products.redhat_product_documentation import RedHatProductDocumentation
-from data_ingestion.data.document_ingestion.docling_loader import DoclingWebsiteBaseLoader
+from data_ingestion.redhat_products.redhat_product_documentation import RedHatProductDocumentation
 
 
 def get_product_documents(product: str, version: str, language: str = "en") -> list[str]:
