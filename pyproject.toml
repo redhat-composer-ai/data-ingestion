@@ -5,7 +5,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 
 dependencies = [
-    "docling>=2.14.0",
+    "docling-core>=2.12.1",
     "einops>=0.8.0",
     "elasticsearch>=8.17.0",
     "kfp>=2.11.0",
@@ -14,7 +14,7 @@ dependencies = [
     "loguru>=0.7.3",
     "python-dotenv>=1.0.1",
     "python-slugify>=8.0.4",
-    "sentence-transformers>=3.3.1",
+    #    "sentence-transformers>=3.3.1",
 ]
 
 [tool.uv]
