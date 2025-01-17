@@ -32,7 +32,7 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 120
 fix = true
-exclude = ["kfp"]
+exclude = ["kfp", "*.ipynb"]
 
 [tool.ruff.lint]
 select = [
