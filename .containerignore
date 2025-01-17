@@ -1,0 +1,13 @@
+# Ignore everything
+*
+
+# Allow specific files
+!data_ingestion
+!pipelines/
+!kfp_config.ini
+!.python-version
+!pyproject.toml
+!uv.lock
+
+# ignore additional python files
+**/__pycache__/
