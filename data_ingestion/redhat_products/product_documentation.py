@@ -1,8 +1,3 @@
-from pathlib import Path
-from typing import Tuple, Union
-
-from langchain_core.documents import Document
-
 from data_ingestion.redhat_products.redhat_product_documentation import RedHatProductDocumentation
 
 def get_documents_list(product: str, version: str, language: str = "en") -> list[str]:
