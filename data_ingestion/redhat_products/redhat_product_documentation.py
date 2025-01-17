@@ -1,5 +1,3 @@
-from pathlib import Path
-from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
 from langchain_community.document_loaders.web_base import WebBaseLoader

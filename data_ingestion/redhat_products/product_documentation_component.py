@@ -1,10 +1,10 @@
 import os
 
 from kfp import dsl
-from kfp.dsl import Artifact
 
 image = os.getenv("COMPONENT_IMAGE", "quay.io/redhat-composer-ai/data-ingestion")
 tag = os.getenv("COMPONENT_IMAGE_TAG", "latest")
+
 
 @dsl.component(target_image=f"{image}:{tag}")
 def get_documents_list_component(product: str, version: str, language: str) -> list[str]:

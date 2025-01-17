@@ -5,6 +5,7 @@ from bs4 import BeautifulSoup
 
 from data_ingestion.redhat_products.redhat_product_documentation import get_product_pages
 
+
 @pytest.fixture
 def mock_loader():
     """Fixture to mock the WebBaseLoader and its scrape method."""

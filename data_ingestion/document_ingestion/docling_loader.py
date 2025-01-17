@@ -3,17 +3,15 @@ A website base loader modeled after langchain WebBaseLoader
 https://github.com/langchain-ai/langchain/blob/master/libs/community/langchain_community/document_loaders/web_base.py
 """
 
-from typing import Union, Iterator, Tuple
+from collections.abc import Iterator
 from pathlib import Path
 
-
 import requests
-
 from bs4 import BeautifulSoup
 from docling.document_converter import DocumentConverter
 from docling_core.types.doc.document import DoclingDocument
-from langchain_core.documents import Document
 from langchain_core.document_loaders import BaseLoader
+from langchain_core.documents import Document
 from loguru import logger
 from slugify import slugify
 
@@ -21,14 +19,15 @@ from slugify import slugify
 class DoclingWebsiteBaseLoader(BaseLoader):
     def __init__(
         self,
-        web_paths: Union[str, list[str]],
+        web_paths: str | list[str],
         save_as_markdown: bool = True,
-        save_target_path: Union[Path, str] = "./data/raw",
+        save_target_path: Path | str = "./data/raw",
     ):
         # make web_paths a list if the user only provided a single value
         self.web_paths = list(web_paths)
         self._converter = DocumentConverter()
         self.save_as_markdown = save_as_markdown
+        self.requests_timeout = 10
         if self.save_as_markdown:
             self.save_target_path = Path(save_target_path)
             # create the parent folder if it doesn't already exist
@@ -50,7 +49,7 @@ class DoclingWebsiteBaseLoader(BaseLoader):
 
             yield Document(page_content=page_contents, metadata=metadata)
 
-    def _scrape(self, url: str) -> Tuple[DoclingDocument, BeautifulSoup]:
+    def _scrape(self, url: str) -> tuple[DoclingDocument, BeautifulSoup]:
         docling_doc = self._scrape_docling(url)
         soup = self._scrape_soup(url)
         return docling_doc, soup
@@ -62,7 +61,7 @@ class DoclingWebsiteBaseLoader(BaseLoader):
         return docling_doc
 
     def _scrape_soup(self, url: str) -> BeautifulSoup:
-        html_text = requests.get(url).text
+        html_text = requests.get(url, timeout=self.requests_timeout).text
         soup = BeautifulSoup(html_text)
         return soup
 

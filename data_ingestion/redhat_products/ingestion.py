@@ -1,8 +1,8 @@
 from pathlib import Path
-from typing import Tuple, Union
 
 from langchain_core.documents import Document
 
+from data_ingestion.document_ingestion.docling_loader import DoclingWebsiteBaseLoader
 from data_ingestion.redhat_products.redhat_product_documentation import RedHatProductDocumentation
 
 
@@ -17,8 +17,8 @@ def load_documents(
     product: str,
     version: str,
     language: str = "en",
-    markdown_root_folder: Union[Path, str] = "./data/raw",
-) -> Tuple[list[Document], Path]:
+    markdown_root_folder: Path | str = "./data/raw",
+) -> tuple[list[Document], Path]:
     target_folder = Path(markdown_root_folder) / product / version / language
     loader = DoclingWebsiteBaseLoader(web_paths=product_pages, save_target_path=target_folder)
     documents = loader.load()
@@ -27,7 +27,7 @@ def load_documents(
 
 def main(product: str, version: str, language: str = "en"):
     product_pages = get_product_documents(product=product, version=version, language=language)
-    documents = load_documents(product_pages=product_pages, product=product, version=version, language=language)
+    documents = load_documents(product_pages=product_pages, product=product, version=version, language=language) # noqa: F841
 
 
 if __name__ == "__main__":

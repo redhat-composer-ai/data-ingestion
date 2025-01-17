@@ -1,10 +1,9 @@
 import os
-from typing import Optional
 
 from elasticsearch import Elasticsearch
+from langchain.embeddings.huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import ElasticsearchStore
 from langchain_core.documents import Document
-from langchain.embeddings.huggingface import HuggingFaceEmbeddings
 
 
 class ElasticSearchDocumentLoader:
@@ -13,7 +12,7 @@ class ElasticSearchDocumentLoader:
         documents: list[Document],
         collection_name: str,
         host: str,
-        port: Optional[str] = "9200",
+        port: str | None = "9200",
         protocol: str = "http",
         verify_certs: bool = False,
         elastic_user: str = os.environ("ELASTIC_USER"),

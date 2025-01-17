@@ -1,8 +1,6 @@
 import os
 import sys
 
-from typing import Optional
-
 from dotenv import load_dotenv
 from loguru import logger
 
@@ -12,7 +10,7 @@ from kfp.components import BaseComponent
 load_dotenv(override=True)
 
 
-def execute_pipeline_run(pipeline: BaseComponent, experiment: str, arguments: Optional[dict] = None ):
+def execute_pipeline_run(pipeline: BaseComponent, experiment: str, arguments: dict | None = None):
     kubeflow_endpoint = os.environ["KUBEFLOW_ENDPOINT"]
 
     logger.info(f"Connecting to kfp: {kubeflow_endpoint}")
